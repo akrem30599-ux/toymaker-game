@@ -4,202 +4,769 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ورشة صانع الألعاب</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
     <style>
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { 
-            font-family: system-ui, sans-serif; 
+            font-family: system-ui, -apple-system, sans-serif; 
             display: flex; flex-direction: column; align-items: center; 
-            background: #2c3e50; color: white; 
-            touch-action: none; margin: 0; padding: 15px; 
+            height: 100dvh; margin: 0; padding: 12px 10px 0;
+            background: radial-gradient(circle at top, #4a3222 0%, #24150d 100%);
+            color: #fdf6e3; touch-action: none; overflow: hidden;
         }
-        .header { display: flex; justify-content: space-between; gap: 8px; width: 100%; max-width: 380px; margin-bottom: 12px; }
-        .btn { background: #e74c3c; color: white; border: none; padding: 10px 14px; border-radius: 8px; font-weight: bold; font-size: 14px; cursor: pointer; }
-        .btn-blue { background: #3498db; }
-        .btn-gold { background: #f39c12; }
-        .btn-green { background: #2ecc71; font-size: 18px; padding: 12px 24px; }
-        
-        #level-title { font-size: 20px; font-weight: bold; margin: 5px 0; }
-        #blueprint { 
-            display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
-            background: rgba(0,0,0,0.25); padding: 10px 16px; border-radius: 10px;
-            color: #f1c40f; font-weight: bold; font-size: 16px; margin-bottom: 18px; 
-        }
-        #board { display: flex; gap: 8px; width: 100%; max-width: 420px; justify-content: center; }
-        
-        .column { 
-            flex: 1; max-width: 62px; height: 320px; 
-            background: #34495e; border-radius: 10px; 
-            display: flex; flex-direction: column-reverse; 
-            padding: 4px; gap: 4px; border: 2px solid transparent;
-            transition: border-color 0.2s;
-        }
-        .column.hint-from { border-color: #f1c40f; box-shadow: 0 0 12px #f1c40f; }
-        .column.hint-to { border-color: #2ecc71; box-shadow: 0 0 12px #2ecc71; }
 
-        .item { 
-            width: 100%; height: 48px; 
-            border-radius: 8px; display: flex; 
-            justify-content: center; align-items: center; 
-            font-size: 24px; transition: transform 0.15s;
+        #toast {
+            position: fixed; top: 14px; left: 50%; transform: translate(-50%, -80px);
+            background: rgba(20, 12, 8, 0.92); color: #f9e79f;
+            border: 1.5px solid #f39c12; padding: 10px 18px; border-radius: 25px;
+            font-size: 14px; font-weight: bold; z-index: 60;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.5);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s;
+            opacity: 0; pointer-events: none; white-space: nowrap;
         }
-        .item.hidden { background: #7f8c8d !important; color: transparent; }
-        .item.hidden::after { content: '❓'; font-size: 16px; opacity: 0.4; }
-        .selected { transform: translateY(-8px) scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 2px solid #fff; }
-        
-        .type-1 { background: #e67e22; }
-        .type-2 { background: #95a5a6; }
-        .type-3 { background: #9b59b6; }
-        .type-4 { background: #1abc9c; }
-        
+        #toast.show { transform: translate(-50%, 0); opacity: 1; }
+
+        .header { 
+            display: flex; justify-content: space-between; gap: 6px; 
+            width: 100%; max-width: 400px; margin-bottom: 8px; z-index: 5;
+        }
+        .btn { 
+            flex: 1; border: none; padding: 10px 6px; border-radius: 12px; 
+            font-weight: bold; font-size: 13px; color: white; cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.35); transition: transform 0.1s;
+        }
+        .btn:active { transform: translateY(3px); }
+        .btn-icon { flex: 0 0 42px; font-size: 17px; background: linear-gradient(180deg, #7f8c8d, #5d6d7e); }
+        .btn-map { flex: 0 0 42px; font-size: 17px; background: linear-gradient(180deg, #8e44ad, #6c3483); }
+        .btn-red { background: linear-gradient(180deg, #e74c3c, #c0392b); }
+        .btn-gold { background: linear-gradient(180deg, #f39c12, #d68910); }
+        .btn-blue { background: linear-gradient(180deg, #3498db, #2980b9); }
+        .btn-green { background: linear-gradient(180deg, #2ecc71, #27ae60); font-size: 16px; padding: 12px 22px; flex: none; }
+
+        .blueprint-card {
+            width: 100%; max-width: 400px; z-index: 5;
+            background: rgba(20, 12, 8, 0.65);
+            border: 2px solid #8d5b34; border-radius: 16px;
+            padding: 8px 12px; margin-bottom: 6px;
+            box-shadow: inset 0 0 14px rgba(0,0,0,0.45);
+        }
+        .toy-stage {
+            display: flex; align-items: center; justify-content: space-between; gap: 10px;
+            margin-bottom: 8px;
+        }
+        .toy-info { flex: 1; text-align: right; }
+        .title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        #level-title { font-size: 15px; font-weight: bold; color: #f9e79f; }
+        #moves-badge { font-size: 12px; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; color: #ddd; }
+
+        .progress-track {
+            width: 100%; height: 8px; background: rgba(255,255,255,0.12);
+            border-radius: 10px; overflow: hidden;
+        }
+        #progress-fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #f39c12, #2ecc71);
+            border-radius: 10px; transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        #toy-preview {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 28px; transition: filter 0.4s, transform 0.3s, box-shadow 0.4s;
+        }
+        #toy-preview.pulse { transform: scale(1.22); }
+
+        #blueprint { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+        .bp-pill {
+            background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 20px;
+            font-size: 14px; font-weight: bold; border: 1px solid rgba(255,255,255,0.12);
+            transition: transform 0.25s, background 0.3s;
+        }
+        .bp-pill.done { background: rgba(46, 204, 113, 0.25); border-color: #2ecc71; color: #2ecc71; }
+        .bp-pill.pop { transform: scale(1.25); background: rgba(241, 196, 15, 0.35); }
+
+        .flying-part {
+            position: fixed; z-index: 40; pointer-events: none;
+            font-size: 30px; transform: translate(-50%, -50%) scale(1);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.65));
+            transition: left 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+                        top 0.52s cubic-bezier(0.22, 1, 0.36, 1),
+                        transform 0.52s ease-in, opacity 0.52s ease-in;
+        }
+
+        #game-container {
+            width: 100%; max-width: 420px; flex: 1;
+            display: flex; justify-content: center; align-items: flex-start;
+        }
+
         #overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; 
-            flex-direction: column; justify-content: center; align-items: center; gap: 15px; z-index: 10;
+            position: fixed; inset: 0; background: rgba(15, 10, 6, 0.88);
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            gap: 14px; z-index: 30; backdrop-filter: blur(4px);
         }
-        #overlay h1 { font-size: 32px; margin: 0; text-align: center; }
+        #overlay h1 { font-size: 26px; margin: 0; text-align: center; padding: 0 20px; }
+        #overlay-stars { font-size: 38px; letter-spacing: 6px; }
+        #overlay-sub { font-size: 14px; color: #ccc; }
+        .overlay-actions { display: flex; gap: 10px; margin-top: 6px; }
+
+        #map-modal {
+            position: fixed; inset: 0; background: rgba(18, 11, 7, 0.96);
+            display: none; flex-direction: column; align-items: center;
+            padding: 16px 14px; z-index: 50; overflow-y: auto;
+        }
+        .map-header {
+            width: 100%; max-width: 400px; display: flex;
+            justify-content: space-between; align-items: center; margin-bottom: 14px;
+        }
+        .map-header h2 { margin: 0; color: #f9e79f; font-size: 20px; }
+        .map-grid {
+            width: 100%; max-width: 400px;
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
+            padding-bottom: 24px;
+        }
+        .lvl-card {
+            background: rgba(255,255,255,0.08); border: 2px solid #8d5b34;
+            border-radius: 14px; padding: 10px 4px; text-align: center;
+            cursor: pointer; transition: transform 0.12s;
+        }
+        .lvl-card:active { transform: scale(0.95); }
+        .lvl-card.current { border-color: #f1c40f; background: rgba(241, 196, 15, 0.18); }
+        .lvl-card.locked { opacity: 0.4; border-color: #555; cursor: not-allowed; }
+        .lvl-num { font-size: 16px; font-weight: bold; }
+        .lvl-icon { font-size: 20px; margin: 3px 0; }
+        .lvl-stars { font-size: 12px; letter-spacing: 1px; min-height: 16px; }
     </style>
 </head>
 <body>
+    <div id="toast"></div>
+
     <div class="header">
-        <button class="btn" onclick="undoMove()">↩ تراجع</button>
-        <button class="btn btn-gold" onclick="showHint()">💡 تلميح</button>
-        <button class="btn btn-blue" onclick="restartLevel()">🔄 إعادة</button>
+        <button class="btn btn-map" onclick="openMap()" title="خريطة المراحل">🗺️</button>
+        <button class="btn btn-red" onclick="uiUndo()">↩ تراجع</button>
+        <button class="btn btn-gold" onclick="uiHint()">💡 تلميح</button>
+        <button class="btn btn-blue" onclick="uiRestart()">🔄 إعادة</button>
+        <button id="sound-btn" class="btn btn-icon" onclick="toggleSound()">🔊</button>
     </div>
 
-    <div id="level-title"></div>
-    <div id="blueprint"></div>
-    <div id="board"></div>
+    <div class="blueprint-card">
+        <div class="toy-stage">
+            <div id="toy-preview">🚂</div>
+            <div class="toy-info">
+                <div class="title-row">
+                    <div id="level-title"></div>
+                    <div id="moves-badge">حركات: 0</div>
+                </div>
+                <div class="progress-track"><div id="progress-fill"></div></div>
+            </div>
+        </div>
+        <div id="blueprint"></div>
+    </div>
+
+    <div id="game-container"></div>
 
     <div id="overlay">
         <h1 id="overlay-msg"></h1>
-        <button id="overlay-btn" class="btn btn-green"></button>
+        <div id="overlay-stars"></div>
+        <div id="overlay-sub"></div>
+        <div class="overlay-actions">
+            <button id="overlay-btn" class="btn btn-green"></button>
+            <button class="btn btn-blue" style="flex:none; padding: 12px 16px;" onclick="openMap()">🗺️ الخريطة</button>
+        </div>
+    </div>
+
+    <div id="map-modal">
+        <div class="map-header">
+            <h2>🗺️ خريطة الورشة</h2>
+            <button class="btn btn-red" style="flex:none; padding: 8px 14px;" onclick="closeMap()">✖ إغلاق</button>
+        </div>
+        <div id="map-grid" class="map-grid"></div>
     </div>
 
     <script src="logic.js"></script>
     <script>
-        const game = new GameLogic();
-        const board = document.getElementById('board');
-        let selectedColIndex = null;
-        let hintMove = null;
+        class SoundFX {
+            constructor() {
+                this.enabled = localStorage.getItem('toymaker_sound') !== 'off';
+                this.ctx = null;
+            }
+            init() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+            }
+            tone(freq, duration, type = 'sine', volume = 0.12, delay = 0) {
+                if (!this.enabled) return;
+                this.init();
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime + delay;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, now);
+                gain.gain.setValueAtTime(volume, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + duration);
+            }
+            vibrate(p) { if (this.enabled && navigator.vibrate) navigator.vibrate(p); }
+            select() { this.tone(420, 0.06, 'triangle', 0.1); this.vibrate(12); }
+            move() { this.tone(300, 0.08, 'sine', 0.12); this.tone(480, 0.08, 'sine', 0.08, 0.04); this.vibrate(18); }
+            merge() {
+                this.tone(523, 0.12, 'triangle', 0.14, 0);
+                this.tone(659, 0.12, 'triangle', 0.14, 0.07);
+                this.tone(784, 0.22, 'triangle', 0.16, 0.14);
+                this.vibrate([25, 35, 45]);
+            }
+            error() { this.tone(160, 0.14, 'sawtooth', 0.08); this.vibrate(50); }
+            undo() { this.tone(360, 0.07, 'sine', 0.09); this.tone(260, 0.09, 'sine', 0.09, 0.05); this.vibrate(15); }
+            win() {
+                [523, 659, 784, 1046].forEach((n, i) => this.tone(n, 0.22, 'triangle', 0.15, i * 0.1));
+                this.vibrate([40, 50, 40, 50, 100]);
+            }
+        }
 
-        function render() {
-            board.innerHTML = '';
-            document.getElementById('level-title').textContent = `المستوى ${game.levelNum}: ${game.toyName}`;
+        const sfx = new SoundFX();
+        const gameLogic = new GameLogic();
+        let activeScene = null;
+        let toastTimer = null;
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 2200);
+        }
+
+        function updateSoundIcon() {
+            document.getElementById('sound-btn').textContent = sfx.enabled ? '🔊' : '🔇';
+        }
+        function toggleSound() {
+            sfx.enabled = !sfx.enabled;
+            localStorage.setItem('toymaker_sound', sfx.enabled ? 'on' : 'off');
+            updateSoundIcon();
+            if (sfx.enabled) sfx.select();
+        }
+
+        function extractToyEmoji(name) {
+            const parts = name.trim().split(' ');
+            return parts[parts.length - 1] || '🧸';
+        }
+
+        function updateHUD(highlightId = null) {
+            document.getElementById('level-title').textContent = `المستوى ${gameLogic.levelNum}: ${gameLogic.toyName}`;
+            document.getElementById('moves-badge').textContent = `حركات: ${gameLogic.movesCount}`;
+
+            let totalReq = 0, totalDone = 0;
+            for (const [id, req] of Object.entries(gameLogic.targets)) {
+                totalReq += req;
+                totalDone += Math.min(req, gameLogic.built[id] || 0);
+            }
+            const pct = totalReq > 0 ? Math.round((totalDone / totalReq) * 100) : 0;
+            document.getElementById('progress-fill').style.width = `${pct}%`;
+
+            const preview = document.getElementById('toy-preview');
+            preview.textContent = extractToyEmoji(gameLogic.toyName);
+            const gray = Math.max(0, 100 - pct);
+            const opacity = 0.35 + (pct / 100) * 0.65;
+            preview.style.filter = `grayscale(${gray}%) opacity(${opacity})`;
+            preview.style.boxShadow = pct === 100 ? '0 0 14px #2ecc71' : 'none';
+
+            if (highlightId) {
+                preview.classList.add('pulse');
+                setTimeout(() => preview.classList.remove('pulse'), 280);
+            }
 
             const bp = document.getElementById('blueprint');
-            bp.innerHTML = Object.entries(game.targets)
+            bp.innerHTML = Object.entries(gameLogic.targets)
                 .map(([id, req]) => {
-                    const done = game.built[id] || 0;
+                    const done = gameLogic.built[id] || 0;
                     const icon = MATERIALS[id].part;
-                    const color = done >= req ? '#2ecc71' : '#f1c40f';
-                    return `<span style="color:${color}">${icon} ${done}/${req}</span>`;
-                }).join(' ');
+                    const isPop = String(id) === String(highlightId) ? 'pop' : '';
+                    return `<span class="bp-pill ${done >= req ? 'done' : ''} ${isPop}" data-part-id="${id}">${icon} ${done}/${req}</span>`;
+                }).join('');
 
-            game.columns.forEach((col, colIndex) => {
-                const colDiv = document.createElement('div');
-                let hintClass = '';
-                if (hintMove && hintMove.from === colIndex) hintClass = 'hint-from';
-                if (hintMove && hintMove.to === colIndex) hintClass = 'hint-to';
+            if (highlightId) {
+                setTimeout(() => {
+                    const el = bp.querySelector(`[data-part-id="${highlightId}"]`);
+                    if (el) el.classList.remove('pop');
+                }, 300);
+            }
+        }
 
-                colDiv.className = `column ${hintClass}`;
-                colDiv.addEventListener('pointerdown', () => handleColumnClick(colIndex));
+        function flyPartToBlueprint(colX, colY, canvasWidth, canvasHeight, partId, partIcon) {
+            const canvas = document.querySelector('#game-container canvas');
+            const targetEl = document.querySelector(`.bp-pill[data-part-id="${partId}"]`);
+            if (!canvas || !targetEl) { updateHUD(partId); return; }
 
-                const stackSize = selectedColIndex === colIndex ? game.getTopStack(colIndex).length : 0;
+            const cRect = canvas.getBoundingClientRect();
+            const startX = cRect.left + (colX / canvasWidth) * cRect.width;
+            const startY = cRect.top + (colY / canvasHeight) * cRect.height;
 
-                col.forEach((item, itemIndex) => {
-                    const itemDiv = document.createElement('div');
-                    const isSelected = selectedColIndex === colIndex && itemIndex >= col.length - stackSize;
-                    
-                    itemDiv.className = `item type-${item.id} ${item.hidden ? 'hidden' : ''} ${isSelected ? 'selected' : ''}`;
-                    itemDiv.textContent = item.hidden ? '' : MATERIALS[item.id].raw;
-                    
-                    colDiv.appendChild(itemDiv);
-                });
-                board.appendChild(colDiv);
+            const tRect = targetEl.getBoundingClientRect();
+            const endX = tRect.left + tRect.width / 2;
+            const endY = tRect.top + tRect.height / 2;
+
+            const flyer = document.createElement('div');
+            flyer.className = 'flying-part';
+            flyer.textContent = partIcon;
+            flyer.style.left = `${startX}px`;
+            flyer.style.top = `${startY}px`;
+            document.body.appendChild(flyer);
+
+            requestAnimationFrame(() => {
+                flyer.style.left = `${endX}px`;
+                flyer.style.top = `${endY}px`;
+                flyer.style.transform = 'translate(-50%, -50%) scale(0.65)';
+                flyer.style.opacity = '0.9';
             });
 
-            checkGameEnd();
+            setTimeout(() => {
+                flyer.remove();
+                updateHUD(partId);
+            }, 520);
         }
 
-        function handleColumnClick(targetColIndex) {
-            if (game.status !== 'playing') return;
-            hintMove = null;
+        function openMap() {
+            sfx.select();
+            const grid = document.getElementById('map-grid');
+            grid.innerHTML = '';
+            const totalToShow = Math.max(20, gameLogic.maxUnlocked + 4);
 
-            if (selectedColIndex === null) {
-                if (game.columns[targetColIndex].length > 0) {
-                    selectedColIndex = targetColIndex;
-                    render();
+            for (let lvl = 1; lvl <= totalToShow; lvl++) {
+                const isUnlocked = lvl <= gameLogic.maxUnlocked;
+                const isCurrent = lvl === gameLogic.levelNum;
+                const stars = gameLogic.starsMap[lvl] || 0;
+                const theme = TOY_THEMES[(lvl - 1) % TOY_THEMES.length];
+                const emoji = isUnlocked ? extractToyEmoji(theme) : '🔒';
+
+                const card = document.createElement('div');
+                card.className = `lvl-card ${isUnlocked ? '' : 'locked'} ${isCurrent ? 'current' : ''}`;
+                card.innerHTML = `
+                    <div class="lvl-num">${lvl}</div>
+                    <div class="lvl-icon">${emoji}</div>
+                    <div class="lvl-stars">${stars > 0 ? '⭐'.repeat(stars) : ''}</div>
+                `;
+
+                if (isUnlocked) {
+                    card.onclick = () => selectLevelFromMap(lvl);
+                } else {
+                    card.onclick = () => {
+                        sfx.error();
+                        showToast('أكمل المراحل السابقة لفتح هذا المستوى 🔒');
+                    };
                 }
-                return;
+                grid.appendChild(card);
             }
 
-            if (selectedColIndex === targetColIndex) {
-                selectedColIndex = null;
-                render();
+            document.getElementById('map-modal').style.display = 'flex';
+        }
+
+        function closeMap() {
+            sfx.select();
+            document.getElementById('map-modal').style.display = 'none';
+        }
+
+        function selectLevelFromMap(lvl) {
+            if (lvl === gameLogic.levelNum && gameLogic.status === 'playing') {
+                closeMap();
                 return;
             }
+            document.getElementById('map-modal').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+            if (!activeScene) return;
+            activeScene.hintMove = null;
+            activeScene.selectedCol = null;
+            activeScene.winTriggered = false;
+            gameLogic.loadLevel(lvl);
+            sfx.select();
+            updateHUD();
+            activeScene.drawBoard();
+        }
 
-            if (game.move(selectedColIndex, targetColIndex)) {
-                selectedColIndex = null;
+        class WorkshopScene extends Phaser.Scene {
+            constructor() {
+                super('WorkshopScene');
+                this.selectedCol = null;
+                this.hintMove = null;
+                this.colContainers = [];
+                this.winTriggered = false;
+            }
+
+            preload() {
+                this.load.image('mat_1', 'wood.png');
+                this.load.image('mat_2', 'iron.png');
+                this.load.image('mat_3', 'cloth.png');
+                this.load.image('mat_4', 'glass.png');
+            }
+
+            create() {
+                activeScene = this;
+                this.createTextures();
+                this.boardGroup = this.add.group();
+                this.drawBoard();
+                updateHUD();
+            }
+
+            createTextures() {
+                const g = this.make.graphics({ x: 0, y: 0, add: false });
+                g.fillStyle(0xffffff, 1);
+                g.fillCircle(6, 6, 6);
+                g.generateTexture('spark', 12, 12);
+                g.destroy();
+            }
+
+            drawMaterialShape(g, id, hidden, w, h, isSelected) {
+                const hw = w / 2, hh = h / 2;
+
+                if (hidden) {
+                    g.fillStyle(0x6b4f35, 1);
+                    g.fillRoundedRect(-hw, -hh, w, h, 7);
+                    g.lineStyle(1.5, 0x3e2a19, 0.8);
+                    g.strokeRect(-hw + 3, -hh + 3, w - 6, h - 6);
+                    g.beginPath();
+                    g.moveTo(-hw + 4, -hh + 4); g.lineTo(hw - 4, hh - 4);
+                    g.moveTo(hw - 4, -hh + 4); g.lineTo(-hw + 4, hh - 4);
+                    g.strokePath();
+                } else if (id === 1) {
+                    g.fillStyle(0xe67e22, 1);
+                    g.fillRoundedRect(-hw, -hh, w, h, 8);
+                    g.lineStyle(1.5, 0xa04000, 0.45);
+                    g.beginPath();
+                    g.moveTo(-hw + 5, -hh + 10); g.lineTo(hw - 5, -hh + 10);
+                    g.moveTo(-hw + 5, hh - 10); g.lineTo(hw - 5, hh - 10);
+                    g.strokePath();
+                } else if (id === 2) {
+                    const c = 8;
+                    g.fillStyle(0x8e9eab, 1);
+                    g.beginPath();
+                    g.moveTo(-hw + c, -hh); g.lineTo(hw - c, -hh);
+                    g.lineTo(hw, -hh + c); g.lineTo(hw, hh - c);
+                    g.lineTo(hw - c, hh); g.lineTo(-hw + c, hh);
+                    g.lineTo(-hw, hh - c); g.lineTo(-hw, -hh + c);
+                    g.closePath();
+                    g.fillPath();
+                    g.lineStyle(1.5, 0xd5dbdb, 0.5);
+                    g.strokePath();
+                } else if (id === 3) {
+                    g.fillStyle(0x9b59b6, 1);
+                    g.fillRoundedRect(-hw, -hh, w, h, 16);
+                    g.lineStyle(1.5, 0xf5eef8, 0.5);
+                    g.strokeRoundedRect(-hw + 4, -hh + 4, w - 8, h - 8, 12);
+                } else {
+                    g.fillStyle(0x1abc9c, 1);
+                    g.fillRoundedRect(-hw, -hh, w, h, 10);
+                    g.fillStyle(0xffffff, 0.22);
+                    g.beginPath();
+                    g.moveTo(0, -hh + 4); g.lineTo(hw - 6, 0);
+                    g.lineTo(0, hh - 4); g.lineTo(-hw + 6, 0);
+                    g.closePath();
+                    g.fillPath();
+                }
+
+                g.fillStyle(0xffffff, 0.18);
+                g.fillRoundedRect(-hw + 4, -hh + 2, w - 8, 5, 3);
+
+                if (isSelected) {
+                    g.lineStyle(2.5, 0xffffff, 1);
+                    g.strokeRoundedRect(-hw, -hh, w, h, 9);
+                }
+            }
+
+            drawBoard(dropCol = null) {
+                this.boardGroup.clear(true, true);
+                this.colContainers = [];
+
+                const numCols = gameLogic.columns.length;
+                const canvasW = this.scale.width;
+                const gap = 8;
+                const colW = Math.min(58, Math.floor((canvasW - 20 - (numCols - 1) * gap) / numCols));
+                const colH = 340;
+                const totalW = numCols * colW + (numCols - 1) * gap;
+                const startX = (canvasW - totalW) / 2;
+                const startY = 18;
+
+                const blockH = Math.floor((colH - 20) / gameLogic.maxHeight) - 4;
+
+                gameLogic.columns.forEach((col, colIndex) => {
+                    const cx = startX + colIndex * (colW + gap) + colW / 2;
+                    const cy = startY + colH / 2;
+
+                    const container = this.add.container(cx, cy);
+                    this.boardGroup.add(container);
+                    this.colContainers.push(container);
+
+                    let borderColor = 0x6e4526;
+                    let borderWidth = 2;
+                    if (this.hintMove && this.hintMove.from === colIndex) { borderColor = 0xf1c40f; borderWidth = 3; }
+                    if (this.hintMove && this.hintMove.to === colIndex) { borderColor = 0x2ecc71; borderWidth = 3; }
+
+                    const bg = this.add.graphics();
+                    bg.fillStyle(0x21130b, 0.85);
+                    bg.fillRoundedRect(-colW / 2, -colH / 2, colW, colH, 12);
+                    bg.lineStyle(borderWidth, borderColor, 1);
+                    bg.strokeRoundedRect(-colW / 2, -colH / 2, colW, colH, 12);
+                    container.add(bg);
+
+                    const hitArea = this.add.rectangle(0, 0, colW, colH, 0x000000, 0).setInteractive({ useHandCursor: true });
+                    hitArea.on('pointerdown', () => this.handleColumnClick(colIndex));
+                    container.add(hitArea);
+
+                    const stackSize = this.selectedCol === colIndex ? gameLogic.getTopStack(colIndex).length : 0;
+
+                    col.forEach((item, itemIndex) => {
+                        const isSelected = this.selectedCol === colIndex && itemIndex >= col.length - stackSize;
+                        const targetY = (colH / 2) - 10 - (blockH / 2) - itemIndex * (blockH + 4);
+                        const yOffset = isSelected ? -10 : 0;
+
+                        const itemBox = this.add.container(0, targetY + yOffset);
+                        const shapeG = this.add.graphics();
+                        this.drawMaterialShape(shapeG, item.id, item.hidden, colW - 10, blockH, isSelected);
+
+                        const texKey = `mat_${item.id}`;
+                        if (!item.hidden && this.textures.exists(texKey)) {
+                            const icon = this.add.image(0, 0, texKey);
+                            const maxSize = Math.min(colW - 14, blockH - 6);
+                            const scale = maxSize / Math.max(icon.width, icon.height);
+                            icon.setScale(scale);
+                            itemBox.add([shapeG, icon]);
+                        } else {
+                            const emoji = item.hidden ? '📦' : MATERIALS[item.id].raw;
+                            const label = this.add.text(0, 0, emoji, {
+                                fontSize: `${Math.min(25, blockH - 12)}px`,
+                                resolution: 2
+                            }).setOrigin(0.5);
+                            itemBox.add([shapeG, label]);
+                        }
+
+                        container.add(itemBox);
+
+                        if (dropCol === colIndex && itemIndex === col.length - 1) {
+                            itemBox.y = targetY - 35;
+                            this.tweens.add({
+                                targets: itemBox,
+                                y: targetY,
+                                duration: 220,
+                                ease: 'Back.easeOut'
+                            });
+                        }
+                    });
+                });
+
+                this.checkGameEnd();
+            }
+
+            playMergeEffect(colIndex, partId, partIcon) {
+                const container = this.colContainers[colIndex];
+                if (!container) return;
+
+                const emitter = this.add.particles(container.x, container.y - 30, 'spark', {
+                    speed: { min: 60, max: 180 },
+                    scale: { start: 1.1, end: 0 },
+                    tint: [0xf1c40f, 0x2ecc71, 0xffffff, 0xe67e22],
+                    lifespan: 550,
+                    gravityY: 200,
+                    emitting: false
+                });
+                emitter.explode(22);
+                this.time.delayedCall(700, () => emitter.destroy());
+
+                this.cameras.main.shake(120, 0.005);
+
+                flyPartToBlueprint(
+                    container.x,
+                    container.y - 20,
+                    this.scale.width,
+                    this.scale.height,
+                    partId,
+                    partIcon
+                );
+            }
+
+            playWinParticles() {
+                const emitter = this.add.particles(this.scale.width / 2, 10, 'spark', {
+                    x: { min: 20, max: this.scale.width - 20 },
+                    speedY: { min: 100, max: 260 },
+                    speedX: { min: -50, max: 50 },
+                    scale: { start: 1.2, end: 0.2 },
+                    tint: [0xf1c40f, 0x2ecc71, 0xe74c3c, 0x3498db, 0x9b59b6],
+                    lifespan: 1800,
+                    frequency: 50
+                });
+                this.time.delayedCall(2000, () => {
+                    emitter.stop();
+                    this.time.delayedCall(1800, () => emitter.destroy());
+                });
+            }
+
+            shakeColumn(colIndex) {
+                const c = this.colContainers[colIndex];
+                if (!c) return;
+                const origX = c.x;
+                this.tweens.add({
+                    targets: c,
+                    x: origX + 6,
+                    duration: 45,
+                    yoyo: true,
+                    repeat: 3,
+                    onComplete: () => { c.x = origX; }
+                });
+            }
+
+            handleColumnClick(targetCol) {
+                if (gameLogic.status !== 'playing') return;
+                this.hintMove = null;
+
+                if (this.selectedCol === null) {
+                    if (gameLogic.columns[targetCol].length > 0) {
+                        this.selectedCol = targetCol;
+                        sfx.select();
+                        this.drawBoard();
+                    }
+                    return;
+                }
+
+                if (this.selectedCol === targetCol) {
+                    this.selectedCol = null;
+                    sfx.select();
+                    this.drawBoard();
+                    return;
+                }
+
+                const prevBuilt = { ...gameLogic.built };
+                if (gameLogic.move(this.selectedCol, targetCol)) {
+                    this.selectedCol = null;
+
+                    let mergedId = null;
+                    for (const id of Object.keys(gameLogic.built)) {
+                        if (gameLogic.built[id] > (prevBuilt[id] || 0)) {
+                            mergedId = id;
+                            break;
+                        }
+                    }
+
+                    this.drawBoard(mergedId ? null : targetCol);
+
+                    if (mergedId) {
+                        sfx.merge();
+                        this.playMergeEffect(targetCol, mergedId, MATERIALS[mergedId].part);
+                    } else {
+                        sfx.move();
+                        updateHUD();
+                    }
+                } else {
+                    sfx.error();
+                    this.shakeColumn(targetCol);
+                    this.selectedCol = gameLogic.columns[targetCol].length > 0 ? targetCol : null;
+                    this.time.delayedCall(180, () => this.drawBoard());
+                }
+            }
+
+            checkGameEnd() {
+                const overlay = document.getElementById('overlay');
+                const msg = document.getElementById('overlay-msg');
+                const starsEl = document.getElementById('overlay-stars');
+                const subEl = document.getElementById('overlay-sub');
+                const btn = document.getElementById('overlay-btn');
+
+                if (gameLogic.status === 'win') {
+                    msg.textContent = `🎉 اكتمل ${gameLogic.toyName}`;
+                    msg.style.color = '#f1c40f';
+                    const earned = gameLogic.lastEarnedStars || 1;
+                    starsEl.textContent = '⭐'.repeat(earned) + '☆'.repeat(3 - earned);
+                    subEl.textContent = `أكملته في ${gameLogic.movesCount} حركة`;
+                    btn.textContent = 'المستوى التالي ➡️';
+                    btn.onclick = uiNextLevel;
+
+                    setTimeout(() => {
+                        if (gameLogic.status === 'win') {
+                            gameLogic.saveWinProgress();
+                            overlay.style.display = 'flex';
+                        }
+                    }, 550);
+
+                    if (!this.winTriggered) {
+                        this.winTriggered = true;
+                        sfx.win();
+                        this.playWinParticles();
+                    }
+                } else if (gameLogic.status === 'lose') {
+                    msg.textContent = '❌ لا توجد حركات!';
+                    msg.style.color = '#e74c3c';
+                    starsEl.textContent = '';
+                    subEl.textContent = 'جرّب التراجع أو إعادة المستوى';
+                    btn.textContent = 'إعادة المستوى 🔄';
+                    btn.onclick = uiRestart;
+                    overlay.style.display = 'flex';
+                }
+            }
+        }
+
+        function uiUndo() {
+            if (!activeScene) return;
+            activeScene.hintMove = null;
+            if (gameLogic.undo()) {
+                sfx.undo();
+                activeScene.selectedCol = null;
+                updateHUD();
+                activeScene.drawBoard();
+            }
+        }
+
+        function uiHint() {
+            if (!activeScene || gameLogic.status !== 'playing') return;
+            const hint = gameLogic.getHint();
+            if (!hint) {
+                sfx.error();
+                showToast('لم أجد تلميحاً الآن، جرّب التراجع خطوة ↩');
             } else {
-                selectedColIndex = game.columns[targetColIndex].length > 0 ? targetColIndex : null;
-            }
-            render();
-        }
-
-        function undoMove() {
-            hintMove = null;
-            if (game.undo()) {
-                selectedColIndex = null;
-                render();
+                sfx.select();
+                activeScene.hintMove = hint;
+                activeScene.drawBoard();
             }
         }
 
-        function showHint() {
-            if (game.status !== 'playing') return;
-            hintMove = game.getHint();
-            if (!hintMove) {
-                alert('لم أجد تلميحاً الآن، جرّب التراجع خطوة ↩');
-            }
-            render();
-        }
-
-        function restartLevel() {
+        function uiRestart() {
             document.getElementById('overlay').style.display = 'none';
-            hintMove = null;
-            selectedColIndex = null;
-            game.reset();
-            render();
+            if (!activeScene) return;
+            activeScene.hintMove = null;
+            activeScene.selectedCol = null;
+            activeScene.winTriggered = false;
+            gameLogic.reset();
+            sfx.undo();
+            updateHUD();
+            activeScene.drawBoard();
         }
 
-        function nextLevel() {
+        function uiNextLevel() {
             document.getElementById('overlay').style.display = 'none';
-            hintMove = null;
-            selectedColIndex = null;
-            game.loadLevel(game.levelNum + 1);
-            render();
+            if (!activeScene) return;
+            activeScene.hintMove = null;
+            activeScene.selectedCol = null;
+            activeScene.winTriggered = false;
+            gameLogic.loadLevel(gameLogic.levelNum + 1);
+            sfx.select();
+            updateHUD();
+            activeScene.drawBoard();
         }
 
-        function checkGameEnd() {
-            const overlay = document.getElementById('overlay');
-            const msg = document.getElementById('overlay-msg');
-            const btn = document.getElementById('overlay-btn');
-
-            if (game.status === 'win') {
-                msg.textContent = `🎉 اكتمل ${game.toyName}`;
-                msg.style.color = '#f1c40f';
-                btn.textContent = 'المستوى التالي ➡️';
-                btn.onclick = nextLevel;
-                overlay.style.display = 'flex';
-            } else if (game.status === 'lose') {
-                msg.textContent = '❌ لا توجد حركات!';
-                msg.style.color = '#e74c3c';
-                btn.textContent = 'إعادة المستوى 🔄';
-                btn.onclick = restartLevel;
-                overlay.style.display = 'flex';
-            }
-        }
-
-        render();
+        updateSoundIcon();
+        new Phaser.Game({
+            type: Phaser.AUTO,
+            parent: 'game-container',
+            width: 400,
+            height: 390,
+            transparent: true,
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_HORIZONTALLY
+            },
+            scene: [WorkshopScene]
+        });
     </script>
 </body>
 </html>
