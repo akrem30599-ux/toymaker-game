@@ -1,14 +1,161 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title></title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ورشة صانع الألعاب - v2</title>
+    <style>
+        body { 
+            font-family: system-ui, sans-serif; 
+            display: flex; flex-direction: column; align-items: center; 
+            background: #2c3e50; color: white; 
+            touch-action: none; margin: 0; padding: 20px; 
+        }
+        .header { display: flex; justify-content: space-between; width: 100%; max-width: 350px; margin-bottom: 20px; }
+        .btn { background: #e74c3c; color: white; border: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn:active { background: #c0392b; }
+        
+        #blueprint { height: 60px; font-size: 18px; color: #f1c40f; font-weight: bold; margin-bottom: 20px; }
+        #board { display: flex; gap: 12px; }
+        
+        .column { 
+            width: 60px; height: 320px; 
+            background: #34495e; border-radius: 10px; 
+            display: flex; flex-direction: column-reverse; 
+            padding: 5px; gap: 5px; 
+        }
+        .item { 
+            width: 100%; height: 55px; 
+            border-radius: 8px; display: flex; 
+            justify-content: center; align-items: center; 
+            font-size: 28px; transition: transform 0.15s, background-color 0.3s;
+        }
+        .item.hidden { background: #7f8c8d !important; color: transparent; }
+        .selected { transform: translateY(-10px) scale(1.05); box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 2px solid #fff; }
+        
+        .type-1 { background: #e67e22; }
+        .type-2 { background: #95a5a6; }
+        
+        /* شاشة النهاية */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; 
+            flex-direction: column; justify-content: center; align-items: center; z-index: 10;
+        }
+        #overlay h1 { font-size: 40px; margin-bottom: 20px; }
+    </style>
 </head>
-
 <body>
-  
-</body>
+    <div class="header">
+        <button class="btn" onclick="undoMove()">↩ تراجع</button>
+        <button class="btn" onclick="restartGame()" style="background:#3498db;">إعادة 🔄</button>
+    </div>
 
+    <div id="blueprint">المطلوب: 4 عجلات ⚙️</div>
+    <div id="board"></div>
+
+    <div id="overlay">
+        <h1 id="overlay-msg"></h1>
+        <button class="btn" onclick="restartGame()" style="background:#2ecc71;">إلعب مجدداً</button>
+    </div>
+
+    <!-- استدعاء ملف المنطق البرمجي -->
+    <script src="logic.js"></script>
+    <script>
+        const game = new GameLogic();
+        const board = document.getElementById('board');
+        let selectedColIndex = null;
+
+        function render() {
+            board.innerHTML = '';
+            game.columns.forEach((col, colIndex) => {
+                const colDiv = document.createElement('div');
+                colDiv.className = 'column';
+                colDiv.addEventListener('pointerdown', () => handleColumnClick(colIndex));
+
+                // تحديد عدد العناصر التي سترتفع عند النقر (إذا كان العمود محدداً)
+                let stackSize = 0;
+                if (selectedColIndex === colIndex) {
+                    stackSize = game.getTopStack(colIndex).length;
+                }
+
+                col.forEach((item, itemIndex) => {
+                    const itemDiv = document.createElement('div');
+                    // إذا كان العنصر ضمن القطع العلوية المتطابقة، يتم تمييزه
+                    const isSelected = selectedColIndex === colIndex && itemIndex >= col.length - stackSize;
+                    
+                    itemDiv.className = `item type-${item.id} ${item.hidden ? 'hidden' : ''} ${isSelected ? 'selected' : ''}`;
+                    itemDiv.textContent = item.id === 1 ? '🪵' : '🪨';
+                    
+                    colDiv.appendChild(itemDiv);
+                });
+                board.appendChild(colDiv);
+            });
+            
+            document.getElementById('blueprint').textContent = `بناء القطار: ${game.wheelsBuilt} / 4 ⚙️`;
+            checkGameEnd();
+        }
+
+        function handleColumnClick(targetColIndex) {
+            if (game.status !== 'playing') return;
+
+            if (selectedColIndex === null) {
+                if (game.columns[targetColIndex].length > 0) {
+                    selectedColIndex = targetColIndex;
+                    render();
+                }
+                return;
+            }
+
+            if (selectedColIndex === targetColIndex) {
+                selectedColIndex = null;
+                render();
+                return;
+            }
+
+            // محاولة النقل عبر دالة المنطق
+            if (game.move(selectedColIndex, targetColIndex)) {
+                selectedColIndex = null;
+            } else {
+                // إذا كانت الحركة خاطئة، قم بتغيير التحديد إلى العمود الجديد
+                if (game.columns[targetColIndex].length > 0) {
+                    selectedColIndex = targetColIndex;
+                } else {
+                    selectedColIndex = null;
+                }
+            }
+            render();
+        }
+
+        function undoMove() {
+            if (game.undo()) {
+                selectedColIndex = null;
+                render();
+            }
+        }
+
+        function restartGame() {
+            document.getElementById('overlay').style.display = 'none';
+            game.reset();
+            selectedColIndex = null;
+            render();
+        }
+
+        function checkGameEnd() {
+            const overlay = document.getElementById('overlay');
+            const msg = document.getElementById('overlay-msg');
+            if (game.status === 'win') {
+                msg.textContent = '🎉 اكتمل القطار!';
+                msg.style.color = '#f1c40f';
+                overlay.style.display = 'flex';
+            } else if (game.status === 'lose') {
+                msg.textContent = '❌ لا توجد حركات!';
+                msg.style.color = '#e74c3c';
+                overlay.style.display = 'flex';
+            }
+        }
+
+        render();
+    </script>
+</body>
 </html>
