@@ -1,4 +1,3 @@
-
 // story.js — حكاية عم منصور وريما
 // يُحمَّل بعد السكربت الرئيسي في index.html مباشرة.
 
@@ -17,9 +16,9 @@ const STORY = {
 
     // لإضافة ذكرى جديدة، أضف مستوى جديداً:
     // 2: {
-    //     toyImg: 'car.png',
-    //     memImg: 'memory-car.png',
-    //     title: 'ذكرى السيارة',
+    //     toyImg: 'musicbox.png',
+    //     memImg: 'memory-musicbox.png',
+    //     title: 'ذكرى صندوق الموسيقى',
     //     text: '...',
     //     line: '...'
     // }
@@ -29,7 +28,7 @@ const STORY = {
 // 2. حفظ الذكريات
 // ======================================
 
-const MEMORY_KEY = 'toymaker_memories';
+const MEMORY_KEY = 'toymaker_memories_v2';
 
 let pendingMemoryLevel = null;
 
@@ -431,6 +430,12 @@ function closeAlbum() {
     const style = document.createElement('style');
 
     style.textContent = `
+        #game-container canvas {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
         #album-modal {
             position: fixed;
             inset: 0;
