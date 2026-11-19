@@ -8,7 +8,8 @@
 const STORY = {
     1: {
         toyImg: 'train.png?v=2',
-        memImg: 'memory-train.png?v=1',
+        memImg: 'memory-train.gif?v=1',
+
         title: 'ذكرى من الماضي',
         text: 'صنع عم منصور هذا القطار لطفل صغير منذ سنوات طويلة... واليوم عادت إليه ذكرى جميلة.',
         line: 'لقد أعاد القطار ذكرى جميلة إلى قلب عم منصور ❤️'
