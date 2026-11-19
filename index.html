@@ -7,11 +7,14 @@
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
     <style>
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { 
-            font-family: system-ui, -apple-system, sans-serif; 
-            display: flex; flex-direction: column; align-items: center; 
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex; flex-direction: column; align-items: center;
             height: 100dvh; margin: 0; padding: 12px 10px 0;
-            background: radial-gradient(circle at top, #4a3222 0%, #24150d 100%);
+            background:
+                linear-gradient(rgba(30, 18, 10, 0.28), rgba(30, 18, 10, 0.55)),
+                url("workshop-bg.png") center center / cover no-repeat,
+                radial-gradient(circle at top, #4a3222 0%, #24150d 100%);
             color: #fdf6e3; touch-action: none; overflow: hidden;
         }
 
@@ -26,12 +29,12 @@
         }
         #toast.show { transform: translate(-50%, 0); opacity: 1; }
 
-        .header { 
-            display: flex; justify-content: space-between; gap: 6px; 
+        .header {
+            display: flex; justify-content: space-between; gap: 6px;
             width: 100%; max-width: 400px; margin-bottom: 8px; z-index: 5;
         }
-        .btn { 
-            flex: 1; border: none; padding: 10px 6px; border-radius: 12px; 
+        .btn {
+            flex: 1; border: none; padding: 10px 6px; border-radius: 12px;
             font-weight: bold; font-size: 13px; color: white; cursor: pointer;
             box-shadow: 0 4px 0 rgba(0,0,0,0.35); transition: transform 0.1s;
         }
@@ -45,37 +48,33 @@
 
         .blueprint-card {
             width: 100%; max-width: 400px; z-index: 5;
-            background: rgba(20, 12, 8, 0.65);
+            background: rgba(20, 12, 8, 0.76);
             border: 2px solid #8d5b34; border-radius: 16px;
             padding: 8px 12px; margin-bottom: 6px;
-            box-shadow: inset 0 0 14px rgba(0,0,0,0.45);
+            box-shadow: inset 0 0 14px rgba(0,0,0,0.45), 0 5px 14px rgba(0,0,0,0.22);
+            backdrop-filter: blur(3px);
         }
-        .toy-stage {
-            display: flex; align-items: center; justify-content: space-between; gap: 10px;
-            margin-bottom: 8px;
-        }
-        .toy-info { flex: 1; text-align: right; }
-        .title-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .toy-stage { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+        .toy-info { flex: 1; text-align: right; min-width: 0; }
+        .title-row { display: flex; justify-content: space-between; align-items: center; gap: 5px; margin-bottom: 4px; }
         #level-title { font-size: 15px; font-weight: bold; color: #f9e79f; }
-        #moves-badge { font-size: 12px; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; color: #ddd; }
-
-        .progress-track {
-            width: 100%; height: 8px; background: rgba(255,255,255,0.12);
-            border-radius: 10px; overflow: hidden;
-        }
+        #moves-badge { font-size: 12px; background: rgba(255,255,255,0.1); padding: 2px 8px; border-radius: 10px; color: #ddd; white-space: nowrap; }
+        .progress-track { width: 100%; height: 8px; background: rgba(255,255,255,0.12); border-radius: 10px; overflow: hidden; }
         #progress-fill {
             height: 100%; width: 0%;
             background: linear-gradient(90deg, #f39c12, #2ecc71);
             border-radius: 10px; transition: width 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
         }
         #toy-preview {
-            width: 48px; height: 48px; border-radius: 12px;
-            background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15);
+            width: 66px; height: 58px; flex: 0 0 66px;
+            border-radius: 12px; background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.15);
             display: flex; justify-content: center; align-items: center;
-            font-size: 28px; transition: filter 0.4s, transform 0.3s, box-shadow 0.4s;
+            overflow: hidden; font-size: 28px;
+            transition: transform 0.3s, box-shadow 0.4s;
         }
-        #toy-preview.pulse { transform: scale(1.22); }
-
+        #toy-image { width: 90%; height: 90%; object-fit: contain; filter: grayscale(100%); transition: filter 0.4s; }
+        #toy-preview.pulse { transform: scale(1.15); }
         #blueprint { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
         .bp-pill {
             background: rgba(255,255,255,0.08); padding: 4px 10px; border-radius: 20px;
@@ -84,7 +83,6 @@
         }
         .bp-pill.done { background: rgba(46, 204, 113, 0.25); border-color: #2ecc71; color: #2ecc71; }
         .bp-pill.pop { transform: scale(1.25); background: rgba(241, 196, 15, 0.35); }
-
         .flying-part {
             position: fixed; z-index: 40; pointer-events: none;
             font-size: 30px; transform: translate(-50%, -50%) scale(1);
@@ -93,21 +91,39 @@
                         top 0.52s cubic-bezier(0.22, 1, 0.36, 1),
                         transform 0.52s ease-in, opacity 0.52s ease-in;
         }
-
         #game-container {
-            width: 100%; max-width: 420px; flex: 1;
+            width: 100%; max-width: 420px; flex: 1; min-height: 0;
             display: flex; justify-content: center; align-items: flex-start;
         }
 
         #overlay {
-            position: fixed; inset: 0; background: rgba(15, 10, 6, 0.88);
+            position: fixed; inset: 0; background: rgba(15, 10, 6, 0.90);
             display: none; flex-direction: column; justify-content: center; align-items: center;
-            gap: 14px; z-index: 30; backdrop-filter: blur(4px);
+            gap: 12px; z-index: 30; backdrop-filter: blur(5px);
+            overflow-y: auto; padding: 18px 0;
         }
         #overlay h1 { font-size: 26px; margin: 0; text-align: center; padding: 0 20px; }
-        #overlay-stars { font-size: 38px; letter-spacing: 6px; }
-        #overlay-sub { font-size: 14px; color: #ccc; }
-        .overlay-actions { display: flex; gap: 10px; margin-top: 6px; }
+        #overlay-stars { font-size: 34px; letter-spacing: 6px; }
+        #overlay-sub { font-size: 14px; color: #ccc; text-align: center; padding: 0 14px; }
+        .overlay-actions { display: flex; gap: 10px; margin-top: 4px; flex-wrap: wrap; justify-content: center; }
+
+        #memory-card {
+            display: none; width: calc(100% - 36px); max-width: 350px;
+            background: linear-gradient(145deg, #56351f, #29190f);
+            border: 2px solid #bd874b; border-radius: 18px; padding: 10px;
+            text-align: center; box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+            animation: memoryAppear 0.6s ease both;
+        }
+        #memory-image {
+            width: 100%; aspect-ratio: 16 / 9; object-fit: cover;
+            border-radius: 12px; display: block; background: rgba(255,255,255,0.06);
+        }
+        #memory-title { color: #f9d77e; font-size: 18px; font-weight: bold; margin-top: 10px; }
+        #memory-text { color: #f5e6cc; font-size: 13px; line-height: 1.7; margin: 6px 4px 2px; }
+        @keyframes memoryAppear {
+            from { opacity: 0; transform: translateY(18px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
 
         #map-modal {
             position: fixed; inset: 0; background: rgba(18, 11, 7, 0.96);
@@ -119,11 +135,7 @@
             justify-content: space-between; align-items: center; margin-bottom: 14px;
         }
         .map-header h2 { margin: 0; color: #f9e79f; font-size: 20px; }
-        .map-grid {
-            width: 100%; max-width: 400px;
-            display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;
-            padding-bottom: 24px;
-        }
+        .map-grid { width: 100%; max-width: 400px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding-bottom: 24px; }
         .lvl-card {
             background: rgba(255,255,255,0.08); border: 2px solid #8d5b34;
             border-radius: 14px; padding: 10px 4px; text-align: center;
@@ -135,6 +147,16 @@
         .lvl-num { font-size: 16px; font-weight: bold; }
         .lvl-icon { font-size: 20px; margin: 3px 0; }
         .lvl-stars { font-size: 12px; letter-spacing: 1px; min-height: 16px; }
+
+        @media (max-height: 650px) {
+            body { padding-top: 6px; }
+            .header { margin-bottom: 4px; }
+            .btn { padding-top: 7px; padding-bottom: 7px; }
+            .blueprint-card { padding: 6px 9px; margin-bottom: 3px; }
+            #toy-preview { width: 54px; height: 48px; flex-basis: 54px; }
+            #overlay { gap: 8px; }
+            #memory-card { max-width: 290px; }
+        }
     </style>
 </head>
 <body>
@@ -150,7 +172,9 @@
 
     <div class="blueprint-card">
         <div class="toy-stage">
-            <div id="toy-preview">🚂</div>
+            <div id="toy-preview">
+                <img id="toy-image" src="train.png" alt="القطار الخشبي">
+            </div>
             <div class="toy-info">
                 <div class="title-row">
                     <div id="level-title"></div>
@@ -167,6 +191,13 @@
     <div id="overlay">
         <h1 id="overlay-msg"></h1>
         <div id="overlay-stars"></div>
+
+        <div id="memory-card">
+            <img id="memory-image" src="memory-train.png" alt="عم منصور وريما مع القطار الخشبي">
+            <div id="memory-title">ذكرى من الماضي</div>
+            <p id="memory-text">صنع عم منصور هذا القطار لطفل صغير منذ سنوات طويلة... واليوم عادت إليه ذكرى جميلة.</p>
+        </div>
+
         <div id="overlay-sub"></div>
         <div class="overlay-actions">
             <button id="overlay-btn" class="btn btn-green"></button>
@@ -182,7 +213,7 @@
         <div id="map-grid" class="map-grid"></div>
     </div>
 
-    <script src="logic.js"></script>
+    <script src="logic.js?v=6"></script>
     <script>
         class SoundFX {
             constructor() {
@@ -257,9 +288,31 @@
             return parts[parts.length - 1] || '🧸';
         }
 
+        function updateToyPreview(pct) {
+            const preview = document.getElementById('toy-preview');
+            const isTrainLevel = gameLogic.levelNum === 1;
+
+            if (isTrainLevel) {
+                let image = document.getElementById('toy-image');
+                if (!image) {
+                    image = document.createElement('img');
+                    image.id = 'toy-image';
+                    preview.replaceChildren(image);
+                }
+                image.src = 'train.png';
+                image.alt = 'القطار الخشبي';
+                image.onerror = () => { preview.textContent = '🚂'; };
+                image.style.filter = `grayscale(${100 - pct}%) opacity(${0.35 + (pct / 100) * 0.65})`;
+            } else {
+                preview.textContent = extractToyEmoji(gameLogic.toyName);
+            }
+
+            preview.style.boxShadow = pct === 100 ? '0 0 14px #2ecc71' : 'none';
+        }
+
         function updateHUD(highlightId = null) {
             document.getElementById('level-title').textContent = `المستوى ${gameLogic.levelNum}: ${gameLogic.toyName}`;
-            document.getElementById('moves-badge').textContent = `حركات: ${gameLogic.movesCount}`;
+            document.getElementById('moves-badge').textContent = `حركات: ${gameLogic.movesCount || 0}`;
 
             let totalReq = 0, totalDone = 0;
             for (const [id, req] of Object.entries(gameLogic.targets)) {
@@ -269,13 +322,9 @@
             const pct = totalReq > 0 ? Math.round((totalDone / totalReq) * 100) : 0;
             document.getElementById('progress-fill').style.width = `${pct}%`;
 
-            const preview = document.getElementById('toy-preview');
-            preview.textContent = extractToyEmoji(gameLogic.toyName);
-            const gray = Math.max(0, 100 - pct);
-            const opacity = 0.35 + (pct / 100) * 0.65;
-            preview.style.filter = `grayscale(${gray}%) opacity(${opacity})`;
-            preview.style.boxShadow = pct === 100 ? '0 0 14px #2ecc71' : 'none';
+            updateToyPreview(pct);
 
+            const preview = document.getElementById('toy-preview');
             if (highlightId) {
                 preview.classList.add('pulse');
                 setTimeout(() => preview.classList.remove('pulse'), 280);
@@ -306,7 +355,6 @@
             const cRect = canvas.getBoundingClientRect();
             const startX = cRect.left + (colX / canvasWidth) * cRect.width;
             const startY = cRect.top + (colY / canvasHeight) * cRect.height;
-
             const tRect = targetEl.getBoundingClientRect();
             const endX = tRect.left + tRect.width / 2;
             const endY = tRect.top + tRect.height / 2;
@@ -325,10 +373,7 @@
                 flyer.style.opacity = '0.9';
             });
 
-            setTimeout(() => {
-                flyer.remove();
-                updateHUD(partId);
-            }, 520);
+            setTimeout(() => { flyer.remove(); updateHUD(partId); }, 520);
         }
 
         function openMap() {
@@ -362,13 +407,16 @@
                 }
                 grid.appendChild(card);
             }
-
             document.getElementById('map-modal').style.display = 'flex';
         }
 
         function closeMap() {
             sfx.select();
             document.getElementById('map-modal').style.display = 'none';
+        }
+
+        function hideMemoryCard() {
+            document.getElementById('memory-card').style.display = 'none';
         }
 
         function selectLevelFromMap(lvl) {
@@ -378,6 +426,7 @@
             }
             document.getElementById('map-modal').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
+            hideMemoryCard();
             if (!activeScene) return;
             activeScene.hintMove = null;
             activeScene.selectedCol = null;
@@ -398,14 +447,16 @@
             }
 
             preload() {
-                this.load.image('mat_1', 'wood.png');
-                this.load.image('mat_2', 'iron.png');
-                this.load.image('mat_3', 'cloth.png');
-                this.load.image('mat_4', 'glass.png');
+                this.load.image('mat_1', 'wood.png?v=1');
+                this.load.image('mat_2', 'iron.png?v=1');
+                this.load.image('mat_3', 'cloth.png?v=1');
+                this.load.image('mat_4', 'glass.png?v=1');
             }
 
             create() {
                 activeScene = this;
+                this.cameras.main.setZoom(2);
+                this.cameras.main.centerOn(200, 195);
                 this.createTextures();
                 this.boardGroup = this.add.group();
                 this.drawBoard();
@@ -418,6 +469,16 @@
                 g.fillCircle(6, 6, 6);
                 g.generateTexture('spark', 12, 12);
                 g.destroy();
+            }
+
+            drawIconTile(g, w, h, isSelected) {
+                const hw = w / 2, hh = h / 2;
+                g.fillStyle(0x3a2415, 0.55);
+                g.fillRoundedRect(-hw, -hh, w, h, 8);
+                if (isSelected) {
+                    g.lineStyle(2.5, 0xffffff, 1);
+                    g.strokeRoundedRect(-hw, -hh, w, h, 8);
+                }
             }
 
             drawMaterialShape(g, id, hidden, w, h, isSelected) {
@@ -448,10 +509,8 @@
                     g.lineTo(hw, -hh + c); g.lineTo(hw, hh - c);
                     g.lineTo(hw - c, hh); g.lineTo(-hw + c, hh);
                     g.lineTo(-hw, hh - c); g.lineTo(-hw, -hh + c);
-                    g.closePath();
-                    g.fillPath();
-                    g.lineStyle(1.5, 0xd5dbdb, 0.5);
-                    g.strokePath();
+                    g.closePath(); g.fillPath();
+                    g.lineStyle(1.5, 0xd5dbdb, 0.5); g.strokePath();
                 } else if (id === 3) {
                     g.fillStyle(0x9b59b6, 1);
                     g.fillRoundedRect(-hw, -hh, w, h, 16);
@@ -464,13 +523,11 @@
                     g.beginPath();
                     g.moveTo(0, -hh + 4); g.lineTo(hw - 6, 0);
                     g.lineTo(0, hh - 4); g.lineTo(-hw + 6, 0);
-                    g.closePath();
-                    g.fillPath();
+                    g.closePath(); g.fillPath();
                 }
 
                 g.fillStyle(0xffffff, 0.18);
                 g.fillRoundedRect(-hw + 4, -hh + 2, w - 8, 5, 3);
-
                 if (isSelected) {
                     g.lineStyle(2.5, 0xffffff, 1);
                     g.strokeRoundedRect(-hw, -hh, w, h, 9);
@@ -482,34 +539,57 @@
                 this.colContainers = [];
 
                 const numCols = gameLogic.columns.length;
-                const canvasW = this.scale.width;
+                const canvasW = 400;
                 const gap = 8;
                 const colW = Math.min(58, Math.floor((canvasW - 20 - (numCols - 1) * gap) / numCols));
                 const colH = 340;
                 const totalW = numCols * colW + (numCols - 1) * gap;
                 const startX = (canvasW - totalW) / 2;
                 const startY = 18;
-
                 const blockH = Math.floor((colH - 20) / gameLogic.maxHeight) - 4;
 
                 gameLogic.columns.forEach((col, colIndex) => {
                     const cx = startX + colIndex * (colW + gap) + colW / 2;
                     const cy = startY + colH / 2;
-
                     const container = this.add.container(cx, cy);
                     this.boardGroup.add(container);
                     this.colContainers.push(container);
 
-                    let borderColor = 0x6e4526;
+                    let borderColor = 0x8b5a2b;
                     let borderWidth = 2;
                     if (this.hintMove && this.hintMove.from === colIndex) { borderColor = 0xf1c40f; borderWidth = 3; }
                     if (this.hintMove && this.hintMove.to === colIndex) { borderColor = 0x2ecc71; borderWidth = 3; }
 
                     const bg = this.add.graphics();
-                    bg.fillStyle(0x21130b, 0.85);
-                    bg.fillRoundedRect(-colW / 2, -colH / 2, colW, colH, 12);
+
+                    bg.fillStyle(0x100904, 0.65);
+                    bg.fillRoundedRect(-colW / 2 + 2, -colH / 2 + 5, colW, colH, 12);
+
+                    bg.fillStyle(0x754522, 1);
+                    bg.fillRoundedRect(-colW / 2, -colH / 2, colW, colH, 11);
+
+                    bg.fillStyle(0x4b2b17, 1);
+                    bg.fillRoundedRect(-colW / 2, -colH / 2, 7, colH, { tl: 10, bl: 10, tr: 0, br: 0 });
+
+                    bg.fillStyle(0xb77a42, 0.9);
+                    bg.fillRoundedRect(colW / 2 - 6, -colH / 2 + 3, 5, colH - 6, 3);
+
+                    bg.fillStyle(0x24150c, 1);
+                    bg.fillRoundedRect(-colW / 2 + 8, -colH / 2 + 9, colW - 16, colH - 18, 7);
+
+                    bg.fillStyle(0xc18a50, 0.12);
+                    bg.fillRoundedRect(-colW / 2 + 10, -colH / 2 + 10, 3, colH - 20, 2);
+
+                    bg.fillStyle(0xc18a50, 1);
+                    bg.fillRoundedRect(-colW / 2 - 2, -colH / 2 - 2, colW + 4, 10, 5);
+                    bg.lineStyle(1.5, 0xe7bd82, 0.65);
+                    bg.beginPath();
+                    bg.moveTo(-colW / 2 + 5, -colH / 2 + 2);
+                    bg.lineTo(colW / 2 - 5, -colH / 2 + 2);
+                    bg.strokePath();
+
                     bg.lineStyle(borderWidth, borderColor, 1);
-                    bg.strokeRoundedRect(-colW / 2, -colH / 2, colW, colH, 12);
+                    bg.strokeRoundedRect(-colW / 2 - 1, -colH / 2 - 1, colW + 2, colH + 2, 11);
                     container.add(bg);
 
                     const hitArea = this.add.rectangle(0, 0, colW, colH, 0x000000, 0).setInteractive({ useHandCursor: true });
@@ -522,23 +602,22 @@
                         const isSelected = this.selectedCol === colIndex && itemIndex >= col.length - stackSize;
                         const targetY = (colH / 2) - 10 - (blockH / 2) - itemIndex * (blockH + 4);
                         const yOffset = isSelected ? -10 : 0;
-
                         const itemBox = this.add.container(0, targetY + yOffset);
                         const shapeG = this.add.graphics();
-                        this.drawMaterialShape(shapeG, item.id, item.hidden, colW - 10, blockH, isSelected);
-
                         const texKey = `mat_${item.id}`;
+
                         if (!item.hidden && this.textures.exists(texKey)) {
+                            this.drawIconTile(shapeG, colW - 10, blockH, isSelected);
                             const icon = this.add.image(0, 0, texKey);
                             const maxSize = Math.min(colW - 14, blockH - 6);
                             const scale = maxSize / Math.max(icon.width, icon.height);
                             icon.setScale(scale);
                             itemBox.add([shapeG, icon]);
                         } else {
+                            this.drawMaterialShape(shapeG, item.id, item.hidden, colW - 10, blockH, isSelected);
                             const emoji = item.hidden ? '📦' : MATERIALS[item.id].raw;
                             const label = this.add.text(0, 0, emoji, {
-                                fontSize: `${Math.min(25, blockH - 12)}px`,
-                                resolution: 2
+                                fontSize: `${Math.min(25, blockH - 12)}px`, resolution: 2
                             }).setOrigin(0.5);
                             itemBox.add([shapeG, label]);
                         }
@@ -547,55 +626,33 @@
 
                         if (dropCol === colIndex && itemIndex === col.length - 1) {
                             itemBox.y = targetY - 35;
-                            this.tweens.add({
-                                targets: itemBox,
-                                y: targetY,
-                                duration: 220,
-                                ease: 'Back.easeOut'
-                            });
+                            this.tweens.add({ targets: itemBox, y: targetY, duration: 220, ease: 'Back.easeOut' });
                         }
                     });
                 });
-
                 this.checkGameEnd();
             }
 
             playMergeEffect(colIndex, partId, partIcon) {
                 const container = this.colContainers[colIndex];
                 if (!container) return;
-
                 const emitter = this.add.particles(container.x, container.y - 30, 'spark', {
-                    speed: { min: 60, max: 180 },
-                    scale: { start: 1.1, end: 0 },
+                    speed: { min: 60, max: 180 }, scale: { start: 1.1, end: 0 },
                     tint: [0xf1c40f, 0x2ecc71, 0xffffff, 0xe67e22],
-                    lifespan: 550,
-                    gravityY: 200,
-                    emitting: false
+                    lifespan: 550, gravityY: 200, emitting: false
                 });
                 emitter.explode(22);
                 this.time.delayedCall(700, () => emitter.destroy());
-
                 this.cameras.main.shake(120, 0.005);
-
-                flyPartToBlueprint(
-                    container.x,
-                    container.y - 20,
-                    this.scale.width,
-                    this.scale.height,
-                    partId,
-                    partIcon
-                );
+                flyPartToBlueprint(container.x, container.y - 20, 400, 390, partId, partIcon);
             }
 
             playWinParticles() {
-                const emitter = this.add.particles(this.scale.width / 2, 10, 'spark', {
-                    x: { min: 20, max: this.scale.width - 20 },
-                    speedY: { min: 100, max: 260 },
-                    speedX: { min: -50, max: 50 },
-                    scale: { start: 1.2, end: 0.2 },
+                const emitter = this.add.particles(200, 10, 'spark', {
+                    x: { min: 20, max: 380 }, speedY: { min: 100, max: 260 },
+                    speedX: { min: -50, max: 50 }, scale: { start: 1.2, end: 0.2 },
                     tint: [0xf1c40f, 0x2ecc71, 0xe74c3c, 0x3498db, 0x9b59b6],
-                    lifespan: 1800,
-                    frequency: 50
+                    lifespan: 1800, frequency: 50
                 });
                 this.time.delayedCall(2000, () => {
                     emitter.stop();
@@ -608,11 +665,7 @@
                 if (!c) return;
                 const origX = c.x;
                 this.tweens.add({
-                    targets: c,
-                    x: origX + 6,
-                    duration: 45,
-                    yoyo: true,
-                    repeat: 3,
+                    targets: c, x: origX + 6, duration: 45, yoyo: true, repeat: 3,
                     onComplete: () => { c.x = origX; }
                 });
             }
@@ -640,17 +693,11 @@
                 const prevBuilt = { ...gameLogic.built };
                 if (gameLogic.move(this.selectedCol, targetCol)) {
                     this.selectedCol = null;
-
                     let mergedId = null;
                     for (const id of Object.keys(gameLogic.built)) {
-                        if (gameLogic.built[id] > (prevBuilt[id] || 0)) {
-                            mergedId = id;
-                            break;
-                        }
+                        if (gameLogic.built[id] > (prevBuilt[id] || 0)) { mergedId = id; break; }
                     }
-
                     this.drawBoard(mergedId ? null : targetCol);
-
                     if (mergedId) {
                         sfx.merge();
                         this.playMergeEffect(targetCol, mergedId, MATERIALS[mergedId].part);
@@ -672,15 +719,25 @@
                 const starsEl = document.getElementById('overlay-stars');
                 const subEl = document.getElementById('overlay-sub');
                 const btn = document.getElementById('overlay-btn');
+                const memoryCard = document.getElementById('memory-card');
 
                 if (gameLogic.status === 'win') {
                     msg.textContent = `🎉 اكتمل ${gameLogic.toyName}`;
                     msg.style.color = '#f1c40f';
                     const earned = gameLogic.lastEarnedStars || 1;
                     starsEl.textContent = '⭐'.repeat(earned) + '☆'.repeat(3 - earned);
-                    subEl.textContent = `أكملته في ${gameLogic.movesCount} حركة`;
-                    btn.textContent = 'المستوى التالي ➡️';
-                    btn.onclick = uiNextLevel;
+
+                    if (gameLogic.levelNum === 1) {
+                        memoryCard.style.display = 'block';
+                        subEl.textContent = 'لقد أعاد القطار ذكرى جميلة إلى قلب عم منصور ❤️';
+                        btn.textContent = 'المستوى التالي ➡️';
+                        btn.onclick = uiNextLevel;
+                    } else {
+                        memoryCard.style.display = 'none';
+                        subEl.textContent = `أكملته في ${gameLogic.movesCount} حركة`;
+                        btn.textContent = 'المستوى التالي ➡️';
+                        btn.onclick = uiNextLevel;
+                    }
 
                     setTimeout(() => {
                         if (gameLogic.status === 'win') {
@@ -695,6 +752,7 @@
                         this.playWinParticles();
                     }
                 } else if (gameLogic.status === 'lose') {
+                    memoryCard.style.display = 'none';
                     msg.textContent = '❌ لا توجد حركات!';
                     msg.style.color = '#e74c3c';
                     starsEl.textContent = '';
@@ -732,6 +790,7 @@
 
         function uiRestart() {
             document.getElementById('overlay').style.display = 'none';
+            hideMemoryCard();
             if (!activeScene) return;
             activeScene.hintMove = null;
             activeScene.selectedCol = null;
@@ -744,6 +803,7 @@
 
         function uiNextLevel() {
             document.getElementById('overlay').style.display = 'none';
+            hideMemoryCard();
             if (!activeScene) return;
             activeScene.hintMove = null;
             activeScene.selectedCol = null;
@@ -758,8 +818,9 @@
         new Phaser.Game({
             type: Phaser.AUTO,
             parent: 'game-container',
-            width: 400,
-            height: 390,
+            width: 800,
+            height: 780,
+            antialias: true,
             transparent: true,
             scale: {
                 mode: Phaser.Scale.FIT,
@@ -768,5 +829,6 @@
             scene: [WorkshopScene]
         });
     </script>
+    <script src="story.js?v=1"></script>
 </body>
 </html>
